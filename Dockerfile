@@ -7,8 +7,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ffmpeg gosu passwd ca-certificates python3 python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
-RUN groupadd -g 1000 whisperx \
-    && useradd -u 1000 -g 1000 -M -d /config whisperx
+# The `whisperx` user/group is created at container start by entrypoint.sh,
+# which remaps it to $PUID/$PGID. A build-time `groupadd -g 1000` collides with
+# the `ubuntu` user that the Ubuntu 24.04 base image already ships at uid/gid 1000.
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
