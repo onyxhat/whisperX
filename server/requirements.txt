@@ -2,5 +2,5 @@ fastapi>=0.115
 uvicorn[standard]>=0.30
 python-multipart>=0.0.9
 pydantic-settings>=2.4
-anyio>=4
+anyio>=4,<4.15
 httpx2>=1.0.0
