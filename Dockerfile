@@ -30,7 +30,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev
-RUN --mount=type=cache,target=/root/.cache/uv uv pip install -r server/requirements.txt
+RUN --mount=type=cache,target=/root/.cache/uv uv pip install -r server/requirements.lock
 
 RUN cp server/entrypoint.sh /usr/local/bin/entrypoint.sh && chmod +x /usr/local/bin/entrypoint.sh
 
