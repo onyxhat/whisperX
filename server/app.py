@@ -71,5 +71,5 @@ def create_app(
             ]
         )
 
-    register_transcription_routes(app)  # no-op until Task 8 fills in the body
+    register_transcription_routes(app)
     return app
