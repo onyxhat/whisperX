@@ -87,6 +87,22 @@ def test_vtt_output_has_header():
     assert body.startswith("WEBVTT")
 
 
+def test_subtitles_from_wordless_result_still_emit_cues():
+    # A translate job has no word-level timing: segments carry start/end/text only.
+    # Both srt and vtt must still emit the cue text and a timestamp line.
+    r = {
+        "task": "translate", "language": "en", "duration": 1.53,
+        "temperature": 0.0,
+        "segments": [{"start": 0.0, "end": 1.5, "text": " Hello world."}],
+        "words": [],
+    }
+    for fmt in ("srt", "vtt"):
+        body, _ = render(r, fmt, want_words=False, diarized=False)
+        assert "Hello world." in body, fmt
+        assert "-->" in body, fmt
+        assert body not in ("", "WEBVTT\n"), fmt
+
+
 def test_unknown_format_raises_bad_request():
     with pytest.raises(BadRequestError):
         render(_result(), "flac", want_words=False, diarized=False)

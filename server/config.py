@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import functools
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _VALID_COMPUTE = {"auto", "float16", "float32", "int8"}
@@ -32,13 +34,15 @@ class Settings(BaseSettings):
     port: int = 8000
     log_level: str = "info"
 
-    @property
+    # `cached_property` (not `property`): each resolution imports torch and calls
+    # `torch.cuda.is_available()`, and `/health` reads `device` every 30s.
+    @functools.cached_property
     def device(self) -> str:
         if self.whisperx_device != "auto":
             return self.whisperx_device
         return "cuda" if _cuda_available() else "cpu"
 
-    @property
+    @functools.cached_property
     def compute_type(self) -> str:
         if self.whisperx_compute_type != "auto":
             return self.whisperx_compute_type

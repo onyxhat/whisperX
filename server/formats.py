@@ -67,12 +67,19 @@ def to_verbose_json(result: PipelineResult, want_words: bool, diarized: bool) ->
 
 
 def _write_subtitles(result: PipelineResult, writer_cls) -> str:
-    buf = io.StringIO()
-    wx_result = {
-        "segments": [{**s, "words": s.get("words", [])} for s in result["segments"]],
-        "language": result["language"],
-    }
+    # Decide ONCE whether to use WhisperX's word-level subtitle path: only when
+    # every segment carries a non-empty `words` list. Otherwise strip the `words`
+    # key entirely so the writer falls through to its segment-level branch (which
+    # still applies the `[SPEAKER]:` prefix). A mixed set would make
+    # `iterate_subtitles` do an unguarded `segment["words"]` and KeyError.
+    has_words = bool(result["segments"]) and all(s.get("words") for s in result["segments"])
+    if has_words:
+        segs = [{**s, "words": s["words"]} for s in result["segments"]]
+    else:
+        segs = [{k: v for k, v in s.items() if k != "words"} for s in result["segments"]]
+    wx_result = {"segments": segs, "language": result["language"]}
     options = {"highlight_words": False, "max_line_width": None, "max_line_count": None}
+    buf = io.StringIO()
     writer_cls(".").write_result(wx_result, buf, options)
     return buf.getvalue().strip() + "\n"
 

@@ -41,8 +41,13 @@ def register_transcription_routes(app: FastAPI) -> None:
                 f"unknown response_format '{response_format}'", param="response_format"
             )
 
-        data = await file.read()
         limit = settings.max_upload_mb * 1024 * 1024
+        declared = request.headers.get("content-length")
+        if declared and declared.isdigit() and int(declared) > limit + 8192:
+            raise PayloadTooLargeError(
+                f"file exceeds MAX_UPLOAD_MB ({settings.max_upload_mb} MiB)", param="file"
+            )
+        data = await file.read(limit + 1)
         if len(data) > limit:
             raise PayloadTooLargeError(
                 f"file exceeds MAX_UPLOAD_MB ({settings.max_upload_mb} MiB)", param="file"
@@ -111,7 +116,13 @@ def register_transcription_routes(app: FastAPI) -> None:
         max_speakers: int | None = Form(None),
     ) -> dict:
         form = await request.form()
+        # OpenAI's field is `timestamp_granularities[]`, but some clients send the
+        # bare `timestamp_granularities` key — accept and union both.
         timestamp_granularities = list(form.getlist("timestamp_granularities[]"))
+        timestamp_granularities += [
+            g for g in form.getlist("timestamp_granularities")
+            if g not in timestamp_granularities
+        ]
         return dict(
             file=file,
             model=model,

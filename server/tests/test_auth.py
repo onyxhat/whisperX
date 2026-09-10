@@ -36,3 +36,13 @@ def test_key_configured_rejects_wrong_token():
 def test_key_configured_accepts_correct_token():
     r = _app("secret").get("/x", headers={"Authorization": "Bearer secret"})
     assert r.status_code == 200
+
+
+def test_non_ascii_token_rejected_not_500():
+    # Sent as raw bytes so the client does not ASCII-reject it; Starlette then
+    # hands `require_auth` a latin-1-decoded str with a codepoint > 127.
+    r = _app("secret").get("/x", headers={"Authorization": b"Bearer s\xe9cret"})
+    assert r.status_code == 401
+    body = r.json()
+    assert list(body) == ["error"]
+    assert body["error"]["type"] == "invalid_request_error"

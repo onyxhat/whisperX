@@ -44,6 +44,15 @@ def test_word_granularity_adds_words(make_client, wav_bytes):
         assert [w["word"] for w in r.json()["words"]] == ["hello", "world."]
 
 
+def test_bare_timestamp_granularities_key_adds_words(make_client, wav_bytes):
+    with make_client() as c:
+        r = c.post("/v1/audio/transcriptions",
+                   files={"file": ("a.wav", wav_bytes, "audio/wav")},
+                   data={"response_format": "verbose_json",
+                         "timestamp_granularities": "word"})
+        assert [w["word"] for w in r.json()["words"]] == ["hello", "world."]
+
+
 def test_params_reach_the_job(make_client, wav_bytes):
     with make_client() as c:
         _post(c, _bytes=wav_bytes, prompt="Acme Corp", temperature="0.4")
@@ -108,6 +117,16 @@ def test_translations_route_sets_translate_task_and_skips_align(make_client, wav
         job = c._fake_pipeline.jobs[-1]
         assert job.task == "translate"
         assert c._fake_pipeline.aligned is False
+
+
+def test_translations_srt_is_non_empty_subtitle(make_client, wav_bytes):
+    with make_client(WHISPERX_LANGUAGE="en") as c:
+        r = c.post("/v1/audio/translations",
+                   files={"file": ("a.wav", wav_bytes, "audio/wav")},
+                   data={"response_format": "srt"})
+        assert r.status_code == 200
+        assert "hello world." in r.text
+        assert "-->" in r.text
 
 
 def test_auth_enforced_when_configured(make_client, wav_bytes):

@@ -94,6 +94,9 @@ bearer token), `HF_TOKEN`, `PUID` / `PGID` (`1000`), `MAX_QUEUE` (`16`),
   `Authorization: Bearer <key>`; leave it unset for an open endpoint.
 - `/v1/audio/translations` always reports `language: "en"` and skips alignment.
 - `diarize=true` with no `HF_TOKEN` on the server returns HTTP 400.
+- Uploads are buffered in memory: at defaults the server may hold up to
+  `MAX_QUEUE` × `MAX_UPLOAD_MB` (~3 GiB) of audio at once — size the container
+  and tune these accordingly.
 - `temperature` is accepted as an OpenAI form field and echoed back in
   `verbose_json`, but WhisperX's *batched* decoder does not consume it, so it
   does **not** affect transcription output. Of the OpenAI decoding fields, only

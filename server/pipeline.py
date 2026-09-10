@@ -120,24 +120,31 @@ class WhisperXPipeline:
         )
 
     def _diarize(self, job: Job, audio, result: dict) -> dict:
+        import torch
         import whisperx.diarize  # ensure the submodule/attribute is available at runtime
 
         s = self._settings
+        dp = None
         try:
             dp = whisperx.diarize.DiarizationPipeline(
                 model_name=s.whisperx_diarize_model, token=s.hf_token,
                 device=s.device, cache_dir=s.whisperx_model_dir,
             )
             diar = dp(audio, min_speakers=job.min_speakers, max_speakers=job.max_speakers)
+        except torch.cuda.OutOfMemoryError:
+            # Let the caller map this to the 500 OOM message rather than a 502
+            # "diarization model unavailable".
+            raise
         except Exception as exc:  # noqa: BLE001
             raise DiarizationError(
                 "diarization model unavailable — check HF token and model-gate acceptance"
             ) from exc
-        result = whisperx.assign_word_speakers(diar, result)
-        del dp
-        gc.collect()
-        _empty_cache()
-        return result
+        finally:
+            if dp is not None:
+                del dp
+            gc.collect()
+            _empty_cache()
+        return whisperx.assign_word_speakers(diar, result)
 
 
 def _empty_cache() -> None:

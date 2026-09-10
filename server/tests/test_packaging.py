@@ -28,8 +28,19 @@ def test_dockerfile_uses_uv_not_pip():
     assert "uv pip install -r server/requirements.txt" in df
     assert "pip install " not in df.replace("uv pip install ", "")
     assert "nvidia/cuda:12.8" in df
-    assert 'CMD ["uv", "run", "--no-sync", "python", "-m", "server"]' in df or \
-           'CMD ["uv","run","--no-sync","python","-m","server"]' in df
+    assert 'CMD ["/app/.venv/bin/python", "-m", "server"]' in df or \
+           'CMD ["/app/.venv/bin/python","-m","server"]' in df
+
+
+def test_dockerfile_sets_writable_home_for_dropped_privileges():
+    df = (ROOT / "Dockerfile").read_text()
+    assert "HOME=/config" in df
+    assert "XDG_CACHE_HOME=/config/.cache" in df
+
+
+def test_entrypoint_creates_xdg_cache_dir():
+    text = (ROOT / "server" / "entrypoint.sh").read_text()
+    assert "/config/.cache" in text
 
 
 def test_dockerfile_installs_python():
@@ -42,6 +53,12 @@ def test_dockerignore_keeps_lock_and_pyproject():
     di = (ROOT / ".dockerignore").read_text().splitlines()
     assert "uv.lock" not in di and "pyproject.toml" not in di
     assert any(line.strip() in {".git", ".git/"} for line in di)
+
+
+def test_dockerignore_excludes_heavy_dirs():
+    di = [line.strip() for line in (ROOT / ".dockerignore").read_text().splitlines()]
+    for entry in (".claude", ".superpowers", ".pytest_cache", "*.egg-info"):
+        assert entry in di, entry
 
 
 @pytest.mark.skipif(shutil.which("docker") is None, reason="docker not installed")

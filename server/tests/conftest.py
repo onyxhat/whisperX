@@ -51,20 +51,27 @@ class FakePipeline:
         seg = {
             "start": 0.0, "end": 1.0, "text": " hello world.",
             "avg_logprob": -0.1,
-            "words": [
+        }
+        # A `translate` job skips alignment, so server.pipeline produces segments
+        # with no word-level timing (top-level `words` is []). Mirror that here so
+        # the suite exercises the words-less subtitle path.
+        if job.task == "translate":
+            words: list[dict] = []
+        else:
+            words = [
                 {"word": "hello", "start": 0.0, "end": 0.5},
                 {"word": "world.", "start": 0.6, "end": 1.0},
-            ],
-        }
+            ]
+            seg["words"] = words
         if job.diarize:
             seg["speaker"] = "SPEAKER_00"
-            for wd in seg["words"]:
+            for wd in words:
                 wd["speaker"] = "SPEAKER_00"
         return PipelineResult(
             task=job.task,
             language="en" if job.task == "translate" else (job.language or "en"),
             duration=0.3, temperature=job.temperature,
-            segments=[seg], words=list(seg["words"]),
+            segments=[seg], words=list(words),
         )
 
     def close(self) -> None:  # noqa: D401

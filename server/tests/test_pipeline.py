@@ -157,6 +157,33 @@ def test_diarize_without_token_raises_diarization_error(fake_whisperx):
         p.run(_job(diarize=True))
 
 
+def test_diarize_oom_surfaces_as_inference_error(fake_whisperx, monkeypatch):
+    import torch
+    import whisperx
+
+    from server.errors import DiarizationError, InferenceError
+    from server.pipeline import WhisperXPipeline
+
+    class _OomPipe:
+        def __init__(self, *a, **k):
+            pass
+
+        def __call__(self, *a, **k):
+            raise torch.cuda.OutOfMemoryError("cuda oom during diarization")
+
+    monkeypatch.setattr(whisperx.diarize, "DiarizationPipeline", _OomPipe)
+    p = WhisperXPipeline(_settings(HF_TOKEN="hf_x"))
+    with pytest.raises(InferenceError):
+        p.run(_job(diarize=True))
+    # And specifically NOT the broad 502 mapping.
+    try:
+        p.run(_job(diarize=True))
+    except DiarizationError:  # pragma: no cover - would be the bug
+        pytest.fail("OOM was mis-mapped to DiarizationError")
+    except InferenceError:
+        pass
+
+
 def test_undecodable_audio_raises_audio_decode_error(fake_whisperx, monkeypatch):
     import whisperx
     from server.pipeline import WhisperXPipeline

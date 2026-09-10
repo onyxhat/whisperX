@@ -17,6 +17,8 @@ ENV UV_COMPILE_BYTECODE=1 \
     WHISPERX_MODEL_DIR=/config \
     HF_HOME=/config/huggingface \
     TORCH_HOME=/config/torch \
+    HOME=/config \
+    XDG_CACHE_HOME=/config/.cache \
     PORT=8000
 
 WORKDIR /app
@@ -35,7 +37,7 @@ VOLUME ["/config"]
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5m --retries=3 \
-    CMD /app/.venv/bin/python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"
+    CMD /app/.venv/bin/python -c "import os,urllib.request,sys; sys.exit(0 if urllib.request.urlopen(f'http://localhost:{os.environ.get(\"PORT\",\"8000\")}/health').status==200 else 1)"
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-CMD ["uv", "run", "--no-sync", "python", "-m", "server"]
+CMD ["/app/.venv/bin/python", "-m", "server"]

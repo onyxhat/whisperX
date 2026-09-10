@@ -4,9 +4,10 @@ from contextlib import asynccontextmanager
 from typing import Callable
 
 import anyio
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.responses import JSONResponse
 
+from server.auth import require_auth
 from server.config import Settings, load_settings
 from server.errors import register_exception_handlers
 from server.models import Pipeline
@@ -25,7 +26,12 @@ def create_app(
     settings: Settings | None = None,
     pipeline_factory: Callable[[Settings], Pipeline] | None = None,
 ) -> FastAPI:
-    settings = settings or load_settings()
+    if settings is None:
+        settings = load_settings()
+    else:
+        # An injected Settings must reject impossible combos too (load_settings()
+        # already validates the env-derived path).
+        settings.validate_runtime()
     factory = pipeline_factory or _default_pipeline_factory
 
     @asynccontextmanager
@@ -62,7 +68,7 @@ def create_app(
             "diarization": bool(settings.hf_token),
         }
 
-    @app.get("/v1/models", response_model=ModelList)
+    @app.get("/v1/models", response_model=ModelList, dependencies=[Depends(require_auth)])
     async def list_models():
         return ModelList(
             data=[
