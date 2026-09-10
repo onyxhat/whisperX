@@ -1,0 +1,13 @@
+.git
+.venv
+tests
+server/tests
+figures
+docs
+.zvec-grep
+graft
+.github
+__pycache__
+*.pyc
+.ignore
+.python-version
