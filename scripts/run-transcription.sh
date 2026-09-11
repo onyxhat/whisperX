@@ -2,7 +2,7 @@
 # Send an audio file to a running WhisperX API server and print the result.
 #
 # Usage:
-#   server/try-transcribe.sh AUDIO_FILE [options]
+#   scripts/run-transcription.sh AUDIO_FILE [options]
 #
 # Options:
 #   -u, --url URL          Base URL of the server        (default: http://localhost:8000)
@@ -18,9 +18,9 @@
 #   -h, --help
 #
 # Examples:
-#   server/try-transcribe.sh sample.wav
-#   server/try-transcribe.sh meeting.m4a -d --min-speakers 2 --max-speakers 4 --words
-#   API_KEY=secret server/try-transcribe.sh talk.mp3 -f srt -u http://whisperx.lan:8000
+#   scripts/run-transcription.sh sample.wav
+#   scripts/run-transcription.sh meeting.m4a -d --min-speakers 2 --max-speakers 4 --words
+#   API_KEY=secret scripts/run-transcription.sh talk.mp3 -f srt -u http://whisperx.lan:8000
 
 set -euo pipefail
 

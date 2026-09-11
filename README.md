@@ -43,11 +43,16 @@ This repository provides fast automatic speech recognition (70x realtime with la
 
 <h2 align="left" id="api-server">API server (this fork) 🛰️</h2>
 
-This fork adds a Dockerised, **OpenAI-compatible transcription API** on top of the
-WhisperX pipeline, with **optional `pyannote` speaker diarization exposed over the
-API** — the main way this fork differs from upstream and from a plain
-[faster-whisper](https://github.com/SYSTRAN/faster-whisper) server
-([linuxserver image](https://docs.linuxserver.io/images/docker-faster-whisper/)).
+This fork adds a Dockerised, **OpenAI-compatible transcription API** on top of
+[WhisperX](https://github.com/m-bain/whisperX) by Max Bain et al. Everything
+above this section — the WhisperX pipeline itself (VAD, batched ASR, forced
+alignment, diarization) and the CLI/Python API — is the upstream project,
+unmodified. The one functional addition is **optional `pyannote` speaker
+diarization exposed over the API**, which is also the main way this fork
+differs from a plain [faster-whisper](https://github.com/SYSTRAN/faster-whisper)
+server ([linuxserver image](https://docs.linuxserver.io/images/docker-faster-whisper/)).
+If you use this in research, please cite the original WhisperX work — see
+[Citation](#cite) below.
 
 ### Quick start
 
@@ -60,7 +65,10 @@ curl -s localhost:8000/v1/audio/transcriptions \
   -F 'timestamp_granularities[]=word'
 ```
 
-CPU-only: delete the `deploy.resources` block from `docker-compose.yml`.
+CPU-only: delete the `deploy.resources` block from `docker-compose.yml`. For a
+friendlier CLI (diarization, formats, auth, language, prompt) than raw curl,
+use [`scripts/run-transcription.sh`](scripts/run-transcription.sh) — run it
+with `--help` for the full option list.
 
 ### Endpoints
 
@@ -81,12 +89,29 @@ acceptance of the
 
 All via environment (see
 [the design doc](docs/superpowers/specs/2026-09-10-whisperx-openai-api-server-design.md)
-for the full table). Common ones: `WHISPERX_MODEL` (default `small`),
-`WHISPERX_LANGUAGE` (default `en`; `auto` to detect per request),
-`WHISPERX_MODEL_DIR` (default `/config`), `WHISPERX_COMPUTE_TYPE` /
-`WHISPERX_DEVICE` (`auto`), `WHISPERX_BATCH_SIZE` (`8`), `API_KEY` (optional
-bearer token), `HF_TOKEN`, `PUID` / `PGID` (`1000`), `MAX_QUEUE` (`16`),
-`MAX_UPLOAD_MB` (`200`), `REQUEST_TIMEOUT_S` (`1800`).
+for the full table). Common ones: `WHISPERX_MODEL` (default `small`; any
+[faster-whisper](https://github.com/SYSTRAN/faster-whisper) model name or
+alias, e.g. `large-v3-turbo`), `WHISPERX_LANGUAGE` (default `en`; `auto` to
+detect per request), `WHISPERX_MODEL_DIR` (default `/config`),
+`WHISPERX_COMPUTE_TYPE` / `WHISPERX_DEVICE` (`auto`), `WHISPERX_BATCH_SIZE`
+(`8`), `API_KEY` (optional bearer token), `HF_TOKEN`, `PUID` / `PGID`
+(`1000`), `MAX_QUEUE` (`16`), `MAX_UPLOAD_MB` (`200`), `REQUEST_TIMEOUT_S`
+(`1800`).
+
+### Building the image
+
+The `Dockerfile` targets `nvidia/cuda:12.8.1-runtime-rockylinux9` — the plain
+CUDA runtime, **not** the `-cudnn` variant. PyTorch's cu128 wheels bundle
+their own cuDNN 9; a second, system cuDNN segfaults in `libcudnn_graph.so.9`
+as soon as GPU inference starts (see
+[`CUDNN_TROUBLESHOOTING.md`](CUDNN_TROUBLESHOOTING.md) for the general version
+of this class of issue). `ffmpeg` and `gosu` are fetched as static binaries
+rather than distro packages — Rocky 9's EPEL `ffmpeg-free` needs RPM Fusion to
+resolve a `rubberband` → `ladspa` dependency, which isn't worth enabling a
+whole extra repo for. Server dependencies install from the committed
+`server/requirements.lock` for a reproducible build; regenerate it with
+`uv pip compile server/requirements.txt -o server/requirements.lock` after
+editing `server/requirements.txt`.
 
 ### Notes & limitations
 
