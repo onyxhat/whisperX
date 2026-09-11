@@ -50,6 +50,17 @@ def test_dockerfile_installs_python():
     assert "python3.12" in df
 
 
+def test_dockerfile_installs_ffmpeg_statically():
+    df = (ROOT / "Dockerfile").read_text()
+    # EPEL's ffmpeg-free needs RPM Fusion (rubberband -> ladspa) to resolve on
+    # Rocky 9, so the image fetches a static ffmpeg build instead — not a dnf
+    # package. whisperx.audio.load_audio shells out to the `ffmpeg` binary.
+    package_line = next(line for line in df.splitlines() if "python3.12" in line)
+    assert "ffmpeg" not in package_line
+    assert "ffmpeg-release-amd64-static" in df
+    assert "/usr/local/bin/" in df and "ffprobe" in df
+
+
 def test_dockerignore_keeps_lock_and_pyproject():
     di = (ROOT / ".dockerignore").read_text().splitlines()
     assert "uv.lock" not in di and "pyproject.toml" not in di

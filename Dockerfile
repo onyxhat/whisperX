@@ -10,14 +10,22 @@ COPY --from=ghcr.io/astral-sh/uv:0.11.6 /uv /uvx /bin/
 ADD --chmod=755 https://github.com/tianon/gosu/releases/download/1.17/gosu-amd64 \
     /usr/local/bin/gosu
 
-# ffmpeg-free (EPEL): the ffmpeg CLI whisperx.load_audio shells out to — covers
-#   wav/mp3/aac/m4a/flac/opus. Exotic codecs would need full ffmpeg via RPM Fusion.
+# ffmpeg: EPEL's ffmpeg-free drags in rubberband -> ladspa, which needs RPM
+# Fusion (not enabled) to resolve — see the build failure this replaced. Use a
+# static build instead: self-contained, no distro dependency chain, and it's
+# the binary whisperx.load_audio shells out to.
+ADD https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz \
+    /tmp/ffmpeg.tar.xz
+
 # python3.12: Rocky's default python3 is 3.9, below requires-python >=3.10.
 # shadow-utils: useradd/groupadd/usermod for entrypoint.sh (usually already present).
-RUN dnf install -y --setopt=install_weak_deps=False epel-release \
- && dnf install -y --setopt=install_weak_deps=False \
-        ffmpeg-free python3.12 shadow-utils ca-certificates \
- && dnf clean all && rm -rf /var/cache/dnf
+# xz: needed to unpack the ffmpeg tarball above.
+RUN dnf install -y --setopt=install_weak_deps=False \
+        python3.12 shadow-utils ca-certificates xz \
+ && dnf clean all && rm -rf /var/cache/dnf \
+ && tar -xJf /tmp/ffmpeg.tar.xz -C /tmp \
+ && install -m 755 /tmp/ffmpeg-*-amd64-static/ffmpeg /tmp/ffmpeg-*-amd64-static/ffprobe /usr/local/bin/ \
+ && rm -rf /tmp/ffmpeg.tar.xz /tmp/ffmpeg-*-amd64-static
 
 # The `whisperx` user/group is created at container start by entrypoint.sh
 # (remapped to $PUID/$PGID); there is no build-time user creation.
