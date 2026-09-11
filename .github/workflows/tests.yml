@@ -33,4 +33,7 @@ jobs:
         run: uv sync --all-extras
 
       - name: Run tests
-        run: uv run pytest tests/ -v
+        run: |
+          uv sync --all-extras
+          uv pip install -r server/requirements.lock
+          uv run pytest tests/ server/tests/ -v

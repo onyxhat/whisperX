@@ -1,0 +1,26 @@
+services:
+  whisperx-api:
+    build: .
+    image: whisperx-api:local
+    ports:
+      - "8000:8000"
+    environment:
+      WHISPERX_MODEL: large-v2
+      WHISPERX_LANGUAGE: en
+      HF_TOKEN: ${HF_TOKEN:-}
+      API_KEY: ${API_KEY:-}
+      PUID: 1000
+      PGID: 1000
+    volumes:
+      - whisperx-config:/config
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: ["gpu"]
+    restart: unless-stopped
+
+volumes:
+  whisperx-config:

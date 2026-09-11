@@ -41,6 +41,67 @@ This repository provides fast automatic speech recognition (70x realtime with la
 - 👯‍♂️ Multispeaker ASR using speaker diarization from [pyannote-audio](https://github.com/pyannote/pyannote-audio) (speaker ID labels)
 - 🗣️ VAD preprocessing, reduces hallucination & batching with no WER degradation
 
+<h2 align="left" id="api-server">API server (this fork) 🛰️</h2>
+
+This fork adds a Dockerised, **OpenAI-compatible transcription API** on top of the
+WhisperX pipeline, with **optional `pyannote` speaker diarization exposed over the
+API** — the main way this fork differs from upstream and from a plain
+[faster-whisper](https://github.com/SYSTRAN/faster-whisper) server
+([linuxserver image](https://docs.linuxserver.io/images/docker-faster-whisper/)).
+
+### Quick start
+
+```bash
+export HF_TOKEN=hf_...        # only needed for diarize=true
+docker compose up -d          # GPU host: needs nvidia-container-toolkit
+curl -s localhost:8000/health
+curl -s localhost:8000/v1/audio/transcriptions \
+  -F file=@audio.wav -F response_format=verbose_json \
+  -F 'timestamp_granularities[]=word'
+```
+
+CPU-only: delete the `deploy.resources` block from `docker-compose.yml`.
+
+### Endpoints
+
+| Method & path | Purpose |
+|---|---|
+| `POST /v1/audio/transcriptions` | OpenAI-compatible transcription (`json`, `verbose_json`, `text`, `srt`, `vtt`) |
+| `POST /v1/audio/translations` | X→English; alignment is skipped |
+| `GET /v1/models` | lists the configured model and `whisper-1` |
+| `GET /health` | readiness + queue depth (container `HEALTHCHECK`) |
+
+Extension form fields (beyond OpenAI): `diarize` (bool), `min_speakers`,
+`max_speakers`. When `diarize=true`, `verbose_json` segments and words gain a
+`speaker` field. `diarize=true` requires `HF_TOKEN` set on the server and
+acceptance of the
+[pyannote model gate](https://huggingface.co/pyannote/speaker-diarization-community-1).
+
+### Configuration
+
+All via environment (see
+[the design doc](docs/superpowers/specs/2026-09-10-whisperx-openai-api-server-design.md)
+for the full table). Common ones: `WHISPERX_MODEL` (default `small`),
+`WHISPERX_LANGUAGE` (default `en`; `auto` to detect per request),
+`WHISPERX_MODEL_DIR` (default `/config`), `WHISPERX_COMPUTE_TYPE` /
+`WHISPERX_DEVICE` (`auto`), `WHISPERX_BATCH_SIZE` (`8`), `API_KEY` (optional
+bearer token), `HF_TOKEN`, `PUID` / `PGID` (`1000`), `MAX_QUEUE` (`16`),
+`MAX_UPLOAD_MB` (`200`), `REQUEST_TIMEOUT_S` (`1800`).
+
+### Notes & limitations
+
+- **Auth**: if `API_KEY` is set on the server, requests must send
+  `Authorization: Bearer <key>`; leave it unset for an open endpoint.
+- `/v1/audio/translations` always reports `language: "en"` and skips alignment.
+- `diarize=true` with no `HF_TOKEN` on the server returns HTTP 400.
+- Uploads are buffered in memory: at defaults the server may hold up to
+  `MAX_QUEUE` × `MAX_UPLOAD_MB` (~3 GiB) of audio at once — size the container
+  and tune these accordingly.
+- `temperature` is accepted as an OpenAI form field and echoed back in
+  `verbose_json`, but WhisperX's *batched* decoder does not consume it, so it
+  does **not** affect transcription output. Of the OpenAI decoding fields, only
+  `prompt` (mapped to `initial_prompt`) actually reaches inference.
+
 **Whisper** is an ASR model [developed by OpenAI](https://github.com/openai/whisper), trained on a large dataset of diverse audio. Whilst it does produces highly accurate transcriptions, the corresponding timestamps are at the utterance-level, not per word, and can be inaccurate by several seconds. OpenAI's whisper does not natively support batching.
 
 **Phoneme-Based ASR** A suite of models finetuned to recognise the smallest unit of speech distinguishing one word from another, e.g. the element p in "tap". A popular example model is [wav2vec2.0](https://huggingface.co/facebook/wav2vec2-large-960h-lv60-self).

@@ -1,0 +1,17 @@
+.git
+.venv
+tests
+server/tests
+figures
+docs
+.zvec-grep
+graft
+.github
+.claude
+.superpowers
+.pytest_cache
+*.egg-info
+__pycache__
+*.pyc
+.ignore
+.python-version
