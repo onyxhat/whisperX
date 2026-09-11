@@ -25,7 +25,7 @@ def test_dockerfile_uses_uv_not_pip():
     df = (ROOT / "Dockerfile").read_text()
     assert "astral-sh/uv" in df
     assert "uv sync --frozen" in df
-    assert "uv pip install -r server/requirements.txt" in df
+    assert "uv pip install -r server/requirements.lock" in df
     assert "pip install " not in df.replace("uv pip install ", "")
     assert "nvidia/cuda:12.8" in df
     assert 'CMD ["/app/.venv/bin/python", "-m", "server"]' in df or \
@@ -45,8 +45,9 @@ def test_entrypoint_creates_xdg_cache_dir():
 
 def test_dockerfile_installs_python():
     df = (ROOT / "Dockerfile").read_text()
-    apt_line = next(line for line in df.splitlines() if "ffmpeg" in line and "gosu" in line)
-    assert "python3" in apt_line
+    # Rocky's default python3 is 3.9, below requires-python >=3.10 — the image
+    # must install an explicit newer interpreter for uv to build the venv from.
+    assert "python3.12" in df
 
 
 def test_dockerignore_keeps_lock_and_pyproject():
